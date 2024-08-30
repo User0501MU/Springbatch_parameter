@@ -7,6 +7,7 @@
 package com.udemy.demo.config;
 
 import org.springframework.batch.core.Job;
+import org.springframework.batch.core.JobParametersValidator;
 import org.springframework.batch.core.Step;
 import org.springframework.batch.core.launch.JobLauncher;
 import org.springframework.batch.core.launch.support.RunIdIncrementer;
@@ -18,6 +19,9 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.transaction.PlatformTransactionManager;
+
+import com.udemy.demo.validator.SampleJobParametersValidator;
+
 import org.springframework.batch.core.step.builder.StepBuilder;//ステップビルダーのインポート文
 
 @Configuration
@@ -34,6 +38,11 @@ public class SpringConfig {
 	// で指定したBeanの名前を指定します。)
 	private Tasklet helloTasklet1;
 
+	//tasklet2追加
+	@Autowired
+	@Qualifier("HelloTasklet2")
+	private Tasklet helloTasklet2;
+
 	// 右クリック＞ソース＞フィールドを使用してコンストラクタ生成
 	public SpringConfig(JobLauncher jobLauncher, JobRepository jobRepository,
 			PlatformTransactionManager transactionManager) {
@@ -48,6 +57,14 @@ public class SpringConfig {
 		// Batchでは、トランザクション管理はバッチ処理の整合性を保つために重要です。
 	}
 
+
+
+	//設定クラスにvalidatorを追加、Jobにも追加
+	@Bean
+	public JobParametersValidator jobParametersValidator() {
+		return new SampleJobParametersValidator();
+	}
+
 	// 作業のステップを作る(実行する一つの作業のこと)、メソッドを1つ定義すると完成
 	@Bean
 	public Step helloTaskletStep1() {
@@ -60,12 +77,22 @@ public class SpringConfig {
 				.tasklet(helloTasklet1, transactionManager)
 				.build();
 			}
+
+	@Bean
+	public Step helloTaskletStep2() {
+		return new StepBuilder("helloTasklet2Step",jobRepository)
+				.tasklet(helloTasklet2,transactionManager)
+				.build();
+	}
+
 	//作業をまとめてジョブ（仕事）を作る(複数のステップをまとめたもの)ここでは1つのステップ
 	@Bean
 	public Job helloJob() {
 		return new JobBuilder("helloJob",jobRepository)
 				.incrementer(new RunIdIncrementer())
 				.start(helloTaskletStep1())
+				.next(helloTaskletStep2())//追加
+				.validator(jobParametersValidator())//追加
 				.build();
 
 	}
